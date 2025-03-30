@@ -1,3 +1,8 @@
+*.zip
+imagenet_val_s/
+ImageNet-S/
+val/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
