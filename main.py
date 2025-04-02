@@ -11,11 +11,29 @@ from utils.shap_explainer_gradio import SHAPImageExplainer
 
 
 SAMPLES = [
-    ["/home/hamid/Documents/uofa/MLOPs/imagenet_val_s/ImageNetS50/validation/n01443537/ILSVRC2012_val_00004677.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n01443537/ILSVRC2012_val_00004677.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n02123597/ILSVRC2012_val_00017692.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n02483362/ILSVRC2012_val_00008017.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n02783161/ILSVRC2012_val_00001098.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n02992529/ILSVRC2012_val_00008541.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n03201208/ILSVRC2012_val_00015035.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n03452741/ILSVRC2012_val_00018721.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n04026417/ILSVRC2012_val_00010949.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n04447861/ILSVRC2012_val_00002574.JPEG", "Grad-Cam", 0],
+    ["/home/hamid/Documents/uofa/MLOPs/ece720_mlops_finalproject/imagenet_val_s/ImageNetS50/validation/n06794110/ILSVRC2012_val_00001518.JPEG", "Grad-Cam", 0],
 ]
 
 SAMPLES_LABEL = [
     "n01443537",
+    "n02123597",
+    "n02483362",
+    "n02783161",
+    "n02992529",
+    "n03201208",
+    "n03452741",
+    "n04026417",
+    "n04447861",
+    "n06794110",
 ]
 
 
@@ -91,18 +109,39 @@ def _get_grad_cam_explaination(img, pred_id):
     return heatmap, visual
 
 
+def _get_class(img):
+    image_resized = cv2.resize(img, (256, 256))
+    h, w, _ = image_resized.shape
+    top = (h - 224) // 2
+    left = (w - 224) // 2
+    image_cropped = image_resized[top:top+224, left:left+224]
+
+    image_tensor = _preprocess_img(image_cropped)
+    with torch.no_grad():
+        output = model(image_tensor.unsqueeze(0))
+
+    _, predicted_idx = torch.max(output, 1)
+    predicted_class_name = id_2_name[predicted_idx.item()]
+
+    return predicted_class_name
+
+
 def process_image(img, model_choice, blur_level, blur_choice):
     global previous_img
     global heatmap_cache
     global previous_method
+
+    same_img = previous_img is not None and \
+        (img.shape != previous_img.shape or (img != previous_img).all())
+    cache = heatmap_cache is None or previous_method != model_choice
     
-    if (img != previous_img).all() or heatmap_cache is None or previous_method != model_choice:
+    if same_img or cache:
         image_tensor = _preprocess_img(img)
         with torch.no_grad():
             output = model(image_tensor.unsqueeze(0))
 
         _, predicted_idx = torch.max(output, 1)
-        true_class_name = id_2_name[dir_2_id[SAMPLES_LABEL[0]]]
+        true_class_name = _get_class(img)
 
         if model_choice == "Grad-Cam":
             heatmap, visual = _get_grad_cam_explaination(img, predicted_idx)            
@@ -130,6 +169,8 @@ def process_image(img, model_choice, blur_level, blur_choice):
         
         return return_img, predicted_class_name, true_class_name
     else:
+        true_class_name = _get_class(img)
+
         image_resized = cv2.resize(img, (256, 256))
         h, w, _ = image_resized.shape
         top = (h - 224) // 2
@@ -152,7 +193,6 @@ def process_image(img, model_choice, blur_level, blur_choice):
             output = model(image_tensor.unsqueeze(0))
 
         _, predicted_idx = torch.max(output, 1)
-        true_class_name = id_2_name[dir_2_id[SAMPLES_LABEL[0]]]
 
         predicted_class_name = id_2_name[predicted_idx.item()]
 
